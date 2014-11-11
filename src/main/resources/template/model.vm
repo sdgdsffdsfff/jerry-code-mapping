@@ -1,0 +1,50 @@
+#if($specifyPackage)package ${specifyPackage};#end
+
+
+#if($specifyType)
+#set($className=$specifyType)
+#else
+#set($className=${utils.tableNameToClassName($table.name)})
+#end
+public class ${className} implements java.io.Serializable {
+
+    private static final long serialVersionUID = 1L;
+        
+#foreach($column in $table.columns)
+    /** $!column.comment */
+    private ${utils.columnTypeToJavaType($column.type).getName()} ${utils.columnNameToFieldName($column.name)};
+
+#end
+    
+    public ${className}() {
+        super();
+    }
+    
+    public ${className}(#foreach($column in $table.columns)${utils.columnTypeToJavaType($column.type).getName()} ${utils.columnNameToFieldName($column.name)}#if($velocityCount < $table.columns.size()), #end#end) {
+        super();
+#foreach($column in $table.columns)
+        this.${utils.columnNameToFieldName($column.name)} = ${utils.columnNameToFieldName($column.name)};
+#end
+    }
+
+#foreach($column in $table.columns)
+    public void set${utils.capitalize($utils.columnNameToFieldName($column.name))}(${utils.columnTypeToJavaType($column.type).getName()} ${utils.columnNameToFieldName($column.name)}) {
+        this.${utils.columnNameToFieldName($column.name)} = ${utils.columnNameToFieldName($column.name)};
+    }
+    
+    public ${utils.columnTypeToJavaType($column.type).getName()} #if($utils.columnTypeToJavaType($column.type).getName() == "boolean")is#else get#end${utils.capitalize($utils.columnNameToFieldName($column.name))}() {
+        return this.${utils.columnNameToFieldName($column.name)};
+    }
+    
+#end
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        builder.append("$className [");
+#foreach($column in $table.columns)
+        builder.append("${utils.columnNameToFieldName($column.name)}=").append(this.${utils.columnNameToFieldName($column.name)})#if($velocityCount < $table.columns.size() - 1).append(",")#end;
+#end
+        builder.append("]");
+        return builder.toString();
+    }
+}

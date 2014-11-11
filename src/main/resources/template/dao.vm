@@ -1,0 +1,188 @@
+#if($specifyPackage)package ${specifyPackage};#end
+
+#if($specifyType)
+#set($className = ${specifyType})
+#else
+#set($className = "${utils.tableNameToClassName(${table.name})}DAO")
+#end
+
+#if(${basePackage})
+import ${basePackage}.model.${utils.tableNameToClassName(${table.name})};
+#else
+import model.${utils.tableNameToClassName(${table.name})};
+#end
+import java.util.Collection;
+import java.util.List;
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
+
+import com.qufaya.framework.annotation.DAO;
+#set($modelClass = $utils.tableNameToClassName($table.name))
+#set($modelInstance = $utils.uncapitalize($utils.tableNameToClassName($table.name)))
+#set($rowMapperClass = "${modelClass}RowMapper")
+#set($liteFields = $utils.getLiteFieldsString($table))
+#set($liteParams = $utils.getLiteParamsString($table))
+#set($autoIncrementFields = $utils.getAutoIncrementFieldsString($table))
+#if($autoIncrementFields != "")
+#set($allFields = "$autoIncrementFields, $liteFields")
+#else
+#set($allFields = $liteFields)
+#end
+#macro(none)#end
+#macro(valuesStatement $columns)
+#foreach($column in $columns)#if($column.isAutoIncrement())#none()#else#if($flag),#else#set($flag="1")#end#{${column.name}}#end#end
+#end
+#macro(whereStatement $columns)
+#foreach($column in $columns)#if($velocityCount>1),#end ${column.name}=#{${velocityCount}}#end
+#end
+#macro(paramStatement $columns)
+#foreach($column in $columns)#if($velocityCount>1),#end#none()@Param("${column.name}") ${column.type.getJavaType().getName()} ${utils.columnNameToFieldName($column.name)}#end
+#end
+#macro(updateStatement $columns)
+set #foreach($column in $columns)#if($velocityCount>1),#end#none()`${column.name}`=#{${utils.columnNameToFieldName($column.name)}}#end
+#end
+#macro(collectionParamStatement $columns)
+#foreach($column in $columns)#if($velocityCount>1),#end#none()@Param("${column.name}s") Collection<${column.type.getJavaType().getWrapperTypeName().getSimpleName()}> ${utils.columnNameToFieldName($column.name)}s#end
+#end
+#macro(getByIndexSql $table $idx)
+#set($sepFlag=0)
+#set($sql="select $allFields from `${table.name}` where")
+#foreach($part in $idx.members)
+#if($sepFlag > 0)
+#set($sql="$sql and")
+#end
+#set($sql="$sql `$part.name`=#{${part.name}}")
+#end
+$sql#end
+#macro(deleteByIndexSql $table $idx)
+#set($sql="delete from `${table.name}` where")
+#foreach($part in $idx.members)
+#if($sepFlag > 0)
+#set($sql="$sql and")
+#end
+#set($sql="$sql `$part.name`=#{${part.name}}")
+#end
+$sql#end
+#macro(updateByIndexSql $table $idx)
+#set($sql="update `$table.name` set ")
+#set($sepFlag=0)
+#foreach($column in $table.columns)
+#set($ignoreFlag=false)
+#foreach($part in $idx.members)
+#if($part.name == $column.name)
+#set($ignoreFlag=true)
+#end
+#end
+#if($column.isAutoIncrement())
+#set($ignoreFlag=true)
+#end
+#if($ignoreFlag)
+#none()
+#else
+#if($sepFlag > 0)
+#set($sql="$sql,")
+#else
+#set($sepFlag=1)
+#end
+#set($sql="$sql`$column.name`=#{${utils.columnNameToFieldName($column.name)}}")
+#end
+#end
+#set($sepFlag=0)
+#set($sql="$sql where")
+#foreach($part in $idx.members)
+#if($sepFlag > 0)
+#set($sql="$sql and")
+#end
+#set($sql="$sql `$part.name`=#{${utils.columnNameToFieldName($part.name)}}")
+#end
+$sql#end
+#macro(updateByPrimaryKeySql $table $idx)
+#set($sql="update `$table.name` set ")
+#set($sepFlag=0)
+#foreach($column in $table.columns)
+#set($ignoreFlag=false)
+#foreach($part in $idx.members)
+#if($part.name == $column.name)
+#set($ignoreFlag=true)
+#end
+#end
+#if($column.isAutoIncrement())
+#set($ignoreFlag=true)
+#end
+#if($ignoreFlag)
+#none()
+#else
+#if($sepFlag > 0)
+#set($sql="$sql,")
+#else
+#set($sepFlag=1)
+#end
+#set($sql="$sql`$column.name`=#{${utils.columnNameToFieldName($column.name)}}")
+#end
+#end
+#set($sepFlag=0)
+#set($sql="$sql where")
+#foreach($part in $idx.members)
+#if($sepFlag > 0)
+#set($sql="$sql and")
+#end
+#set($sql="$sql `$part.name`=#{${utils.columnNameToFieldName($part.name)}}")
+#end
+$sql#end
+#macro(collectionWhereStatement $key)
+#set($sepFlag=0)
+#set($where="")
+#foreach($member in $key.members)
+#if($sepFlag > 0)
+#set($where="$where and ")
+#else
+#set($sepFlag=1)
+#end
+#set($where="${where}`$member.name` in <foreach item=\""${utils.columnNameToFieldName($member.name)}\"" index=\""index\"" collection=\""${utils.columnNameToFieldName($member.name)}s\"" open=\""(\"" separator=\"",\"" close=\"")\"">#{${utils.columnNameToFieldName($member.name)}}</foreach>")
+#end
+$where#end
+
+@DAO
+public interface ${className} {
+
+    @Insert("insert into `$table.name` ($liteFields) values (#valuesStatement($table.columns))")
+    @Options(useGeneratedKeys = true, keyProperty = "${table.primaryKey.members[0].name}", keyColumn = "${table.primaryKey.members[0].name}")
+    public int insert($modelClass $modelInstance);
+    
+    @Select("select $allFields from `${table.name}`")
+    public List<$modelClass> getAll();
+
+    @Select("#getByIndexSql($table $table.primaryKey)")
+    public $modelClass getBy${utils.getMethodName($table.primaryKey)}(#paramStatement($table.primaryKey.members));
+    
+    @Select("select $allFields from `${table.name}` where #collectionWhereStatement($table.primaryKey)")
+    public List<$modelClass> getBy${utils.getMethodName($table.primaryKey)}s(#collectionParamStatement($table.primaryKey.members));
+    
+    @Delete("#deleteByIndexSql($table $table.primaryKey)")
+    public int deleteBy${utils.getMethodName($table.primaryKey)}(#paramStatement($table.primaryKey.members));
+    
+    @Update("#updateByPrimaryKeySql($table $table.primaryKey)")
+    public int updateBy${utils.getMethodName($table.primaryKey)}($modelClass $modelInstance);
+    
+#foreach($idx in $table.indexes)
+#if($idx.isUnique())
+    @Select("#getByIndexSql($table $idx)")
+    public $modelClass getBy${utils.getMethodName($idx)}(#paramStatement($idx.members));
+    
+    @Delete("#deleteByIndexSql($table $idx)")
+    public int deleteBy${utils.getMethodName($idx)}(#paramStatement($idx.members));
+    
+    @Update("#updateByIndexSql($table $idx)")
+    public int updateBy${utils.getMethodName($idx)}($modelClass $modelInstance);
+    
+#else
+    @Select("#getByIndexSql($table $idx)")
+    public List<$modelClass> getBy${utils.getMethodName($idx)}(#paramStatement($idx.members));
+    
+#end
+#end
+}

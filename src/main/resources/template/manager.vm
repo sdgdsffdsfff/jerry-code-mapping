@@ -1,0 +1,111 @@
+#if($specifyPackage)package ${specifyPackage};#end
+
+#if($specifyType)
+#set($className = ${specifyType})
+#else
+#set($className = "${utils.tableNameToClassName(${table.name})}Manager")
+#end
+
+#set($modelClass = $utils.tableNameToClassName($table.name))
+#set($modelInstance = $utils.uncapitalize($utils.tableNameToClassName($table.name)))
+#set($daoClass = "${modelClass}DAO")
+#set($daoInstance = $utils.uncapitalize($daoClass))
+#set($liteFields = $utils.getLiteFieldsString($table))
+#set($liteParams = $utils.getLiteParamsString($table))
+#set($autoIncrementFields = $utils.getAutoIncrementFieldsString($table))
+#if($autoIncrementFields != "")
+#set($allFields = "$autoIncrementFields, $liteFields")
+#else
+#set($allFields = $liteFields)
+#end
+#set($key = $table.primaryKey.members[0])
+#set($keyWrapperType = $key.type.getJavaType().getWrapperTypeName().getSimpleName())
+#set($keySimpleType = $key.type.getJavaType().getName())
+#set($keyName = ${utils.columnNameToFieldName($key.name)})
+
+#macro(paramDefineStatement $columns)
+#foreach($column in $columns)#if($velocityCount>1),#end#none()${column.type.getJavaType().getName()} ${utils.columnNameToFieldName($column.name)}#end
+#end
+
+#macro(paramValueStatement $columns)
+#foreach($column in $columns)#if($velocityCount>1),#end#none()${utils.columnNameToFieldName($column.name)}#end
+#end
+
+#if(${basePackage})
+import ${basePackage}.model.${utils.tableNameToClassName(${table.name})};
+#else
+import model.${utils.tableNameToClassName(${table.name})};
+#end
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.inject.Inject;
+import javax.inject.Named;
+
+import org.apache.commons.collections.CollectionUtils;
+
+@Named
+public class ${className} {
+
+    @Inject
+    $daoClass $daoInstance;
+
+    public int insert($modelClass $modelInstance) {
+        return this.${daoInstance}.insert($modelInstance);
+    }
+    
+    public List<$modelClass> getAll() {
+        return this.${daoInstance}.getAll();
+    }
+
+    public $modelClass getBy${utils.getMethodName($table.primaryKey)}(#paramDefineStatement($table.primaryKey.members)) {
+        return this.${daoInstance}.getBy${utils.getMethodName($table.primaryKey)}(#paramValueStatement($table.primaryKey.members));
+    }
+    
+    public Map<$keyWrapperType, $modelClass> getBy$utils.capitalize($keyName)s(Collection<$keyWrapperType> ${keyName}s) {
+        if (CollectionUtils.isEmpty(${keyName}s)) {
+            return Collections.emptyMap();
+        }
+        
+        List<$modelClass> ${modelInstance}s = this.${daoInstance}.getBy$utils.capitalize($keyName)s(${keyName}s);
+        
+        Map<$keyWrapperType, $modelClass> ${modelInstance}Map = new HashMap<>(${modelInstance}s.size()); 
+        for ($modelClass $modelInstance : ${modelInstance}s) {
+            ${modelInstance}Map.put(${modelInstance}.get${utils.capitalize($keyName)}(), $modelInstance);
+        }
+        return ${modelInstance}Map;
+    }
+    
+    public int deleteBy${utils.getMethodName($table.primaryKey)}(#paramDefineStatement($table.primaryKey.members)) {
+        return this.${daoInstance}.deleteBy${utils.getMethodName($table.primaryKey)}(#paramValueStatement($table.primaryKey.members));
+    }
+    
+    public int updateBy${utils.getMethodName($table.primaryKey)}($modelClass $modelInstance) {
+        return this.${daoInstance}.updateBy${utils.getMethodName($table.primaryKey)}($modelInstance);
+    }
+    
+#foreach($idx in $table.indexes)
+#if($idx.isUnique())
+    public $modelClass getBy${utils.getMethodName($idx)}(#paramDefineStatement($idx.members)) {
+        return this.${daoInstance}.getBy${utils.getMethodName($idx)}(#paramValueStatement($idx.members));
+    }
+    
+    public int deleteBy${utils.getMethodName($idx)}(#paramDefineStatement($idx.members)) {
+        return this.${daoInstance}.deleteBy${utils.getMethodName($idx)}(#paramValueStatement($idx.members));
+    }
+    
+    public int updateBy${utils.getMethodName($idx)}($modelClass $modelInstance) {
+        return this.${daoInstance}.updateBy${utils.getMethodName($idx)}($modelInstance);
+    }
+    
+#else
+    public List<$modelClass> getBy${utils.getMethodName($idx)}(#paramDefineStatement($idx.members)) {
+        return this.${daoInstance}.getBy${utils.getMethodName($idx)}(#paramValueStatement($idx.members));
+    }
+    
+#end
+#end
+}

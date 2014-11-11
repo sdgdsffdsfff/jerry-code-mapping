@@ -1,0 +1,26 @@
+#if($specifyPackage)package ${specifyPackage};#end
+
+#if($specifyType)
+#set($className = ${specifyType})
+#else
+#set($className = "${utils.tableNameToClassName(${table.name})}Service")
+#end
+
+#set($modelClass = $utils.tableNameToClassName($table.name))
+#set($modelInstance = $utils.uncapitalize($utils.tableNameToClassName($table.name)))
+#set($daoClass = "${modelClass}DAO")
+#set($daoInstance = $utils.uncapitalize($daoClass))
+#set($managerClass = "${modelClass}Manager")
+#set($managerInstance = $utils.uncapitalize($managerClass))
+
+import javax.inject.Inject;
+import javax.inject.Named;
+
+@Named
+public class ${className} {
+
+    @Inject
+    $managerClass ${managerInstance};
+
+    
+}
